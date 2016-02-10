@@ -18,20 +18,26 @@
  */
 package com.joanzapata;
 
-import android.content.Intent;
-import android.util.Log;
+import android.graphics.Bitmap;
+
 import com.actionbarsherlock.app.SherlockActivity;
-import com.actionbarsherlock.view.Menu;
 import com.googlecode.androidannotations.annotations.*;
+import com.joanzapata.pdfview.PDFRenderer;
 import com.joanzapata.pdfview.PDFView;
 import com.joanzapata.pdfview.listener.OnPageChangeListener;
+import com.joanzapata.pdfview.listener.OnTapListener;
 import com.joanzapata.pdfview.sample.R;
+import com.joanzapata.pdfview.util.FileUtils;
+
+import java.io.File;
+import java.io.IOException;
 
 import static java.lang.String.format;
 
 @EActivity(R.layout.activity_main)
 @OptionsMenu(R.menu.actionbar)
-public class PDFViewActivity extends SherlockActivity implements OnPageChangeListener {
+public class PDFViewActivity extends SherlockActivity implements OnPageChangeListener,
+        OnTapListener {
 
     public static final String SAMPLE_FILE = "sample.pdf";
 
@@ -39,6 +45,7 @@ public class PDFViewActivity extends SherlockActivity implements OnPageChangeLis
 
     @ViewById
     PDFView pdfView;
+    PDFView pdfViewDebug;
 
     @NonConfigurationInstance
     String pdfName = SAMPLE_FILE;
@@ -48,6 +55,7 @@ public class PDFViewActivity extends SherlockActivity implements OnPageChangeLis
 
     @AfterViews
     void afterViews() {
+        //loadThumbnails(pdfName);
         display(pdfName, false);
     }
 
@@ -57,13 +65,32 @@ public class PDFViewActivity extends SherlockActivity implements OnPageChangeLis
             display(ABOUT_FILE, true);
     }
 
+    private void loadThumbnails(String assetFileName) {
+        File pdfFile = null;
+        try {
+            pdfFile = FileUtils.fileFromAsset(this, assetFileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        PDFRenderer thumbnailPdfRenderer = new PDFRenderer(pdfFile);
+        thumbnailPdfRenderer.setMagazineTwoPageView();
+
+        for (int i = 0; i < thumbnailPdfRenderer.getPageCount(); ++i) {
+            Bitmap thumbnailBitmap = thumbnailPdfRenderer.renderPage(i, 100);
+        }
+
+    }
+
     private void display(String assetFileName, boolean jumpToFirstPage) {
         if (jumpToFirstPage) pageNumber = 1;
         setTitle(pdfName = assetFileName);
 
         pdfView.fromAsset(assetFileName)
-                .defaultPage(pageNumber)
+                .defaultPage(1)
                 .onPageChange(this)
+                .onTap(this)
+                .setOnePageView()
                 .load();
     }
 
@@ -71,6 +98,11 @@ public class PDFViewActivity extends SherlockActivity implements OnPageChangeLis
     public void onPageChanged(int page, int pageCount) {
         pageNumber = page;
         setTitle(format("%s %s / %s", pdfName, page, pageCount));
+    }
+
+    @Override
+    public void onTap(int tapX, int tapY) {
+
     }
 
     @Override
@@ -85,4 +117,5 @@ public class PDFViewActivity extends SherlockActivity implements OnPageChangeLis
     private boolean displaying(String fileName) {
         return fileName.equals(pdfName);
     }
+
 }

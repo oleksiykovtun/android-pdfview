@@ -1,5 +1,6 @@
 package org.vudroid.pdfdroid.codec;
 
+import org.vudroid.ViewMode;
 import org.vudroid.core.codec.CodecDocument;
 import org.vudroid.core.codec.CodecPage;
 
@@ -15,7 +16,16 @@ public class PdfDocument implements CodecDocument
 
     public CodecPage getPage(int pageNumber)
     {
-        return PdfPage.createPage(docHandle, pageNumber + 1);
+        if (ViewMode.get() == ViewMode.ONE_PAGE) {
+            return PdfPage.createPage(docHandle, pageNumber + 1);
+        } else {
+            if (ViewMode.isMagazine() && pageNumber == 0) {
+                return PdfPage.createMagazineCoverPage(docHandle, pageNumber + 1);
+            } else {
+                return PdfPage.createPage(docHandle, pageNumber + 1, pageNumber + 2);
+            }
+
+        }
     }
 
     public int getPageCount()

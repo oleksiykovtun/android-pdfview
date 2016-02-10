@@ -41,6 +41,8 @@ public class PagePart {
         super();
         this.userPage = userPage;
         this.page = page;
+        this.width = width;
+        this.height = height;
         this.renderedBitmap = renderedBitmap;
         this.pageRelativeBounds = pageRelativeBounds;
         this.thumbnail = thumbnail;
@@ -81,6 +83,20 @@ public class PagePart {
 
     public void setCacheOrder(int cacheOrder) {
         this.cacheOrder = cacheOrder;
+    }
+
+    @Override
+    public int hashCode() {
+        return (int) (-1000000
+                + page * 1
+                + userPage * 10
+                + pageRelativeBounds.left * 100
+                + pageRelativeBounds.right * 1000
+                + pageRelativeBounds.top * 10000
+                + pageRelativeBounds.bottom * 100000
+                + width * 1000000
+                + height * 10000000
+        );
     }
 
     @Override

@@ -19,8 +19,10 @@
 package com.joanzapata.pdfview;
 
 import android.graphics.PointF;
-import com.joanzapata.pdfview.PDFView;
+
+import com.joanzapata.pdfview.listener.OnTapListener;
 import com.joanzapata.pdfview.util.DragPinchListener;
+import com.joanzapata.pdfview.util.DragPinchListener.OnSingleTapListener;
 import com.joanzapata.pdfview.util.DragPinchListener.OnDoubleTapListener;
 import com.joanzapata.pdfview.util.DragPinchListener.OnDragListener;
 import com.joanzapata.pdfview.util.DragPinchListener.OnPinchListener;
@@ -32,7 +34,8 @@ import static com.joanzapata.pdfview.util.Constants.Pinch.*;
  *         This Manager takes care of moving the PDFView,
  *         set its zoom track user actions.
  */
-class DragPinchManager implements OnDragListener, OnPinchListener, OnDoubleTapListener {
+class DragPinchManager implements OnDragListener, OnPinchListener, OnDoubleTapListener,
+        OnSingleTapListener {
 
     private PDFView pdfView;
 
@@ -51,7 +54,9 @@ class DragPinchManager implements OnDragListener, OnPinchListener, OnDoubleTapLi
         dragPinchListener.setOnDragListener(this);
         dragPinchListener.setOnPinchListener(this);
         dragPinchListener.setOnDoubleTapListener(this);
+        dragPinchListener.setOnSingleTapListener(this);
         pdfView.setOnTouchListener(dragPinchListener);
+
     }
 
     @Override
@@ -118,7 +123,13 @@ class DragPinchManager implements OnDragListener, OnPinchListener, OnDoubleTapLi
     public void onDoubleTap(float x, float y) {
         if (isZooming()) {
             pdfView.resetZoomWithAnimation();
+        } else {
+            pdfView.setZoomWithAnimation(2, x, y);
         }
     }
 
+    @Override
+    public void onSingleTap(float x, float y) {
+        pdfView.onTap((int)x, (int)y);
+    }
 }

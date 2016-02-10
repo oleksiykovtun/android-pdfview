@@ -1,27 +1,8 @@
-[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-android--pdfview-brightgreen.svg?style=flat)](https://android-arsenal.com/details/1/1332)
-
 [![Screenshot of the sample app](https://raw.github.com/JoanZapata/android-pdfview/master/device.png)](https://play.google.com/store/apps/details?id=com.joanzapata.pdfview.sample)
 
-**Android PDFView** is a library which provides a fast PDFView component for Android, with ```animations```, ```gestures```, and ```zoom```. It's based on [VuDroid](https://code.google.com/p/vudroid/) for decoding the PDF file.
+**PDF-View-Android-Vu** - a library which provides a fast PDFView component for Android, with ```animations```, ```gestures```, and ```zoom```. This fork of **Android PDFView** https://github.com/JoanZapata/android-pdfview is based on [VuDroid](https://code.google.com/p/vudroid/) for decoding the PDF file.
 
-# Get it
-
-Android PDFView is **available in Maven Central**.
-
-```xml
-<dependency>
-	<groupId>com.joanzapata.pdfview</groupId>
-	<artifactId>android-pdfview</artifactId>
-	<version>1.0.2</version>
-	<type>apklib</type>
-</dependency>
-```
-
-Or via gradle:
-
-```
-compile 'com.joanzapata.pdfview:android-pdfview:1.0.+@aar'
-```
+This fork supports 2-page viewing.
 
 # Include PDFView in your layout
 
@@ -36,7 +17,7 @@ compile 'com.joanzapata.pdfview:android-pdfview:1.0.+@aar'
 
 ```java
 pdfView.fromAsset(pdfName)
-    .pages(0, 2, 1, 3, 3, 3)
+    .setTwoPageView()
     .defaultPage(1)
     .showMinimap(false)
     .enableSwipe(true)
@@ -46,7 +27,15 @@ pdfView.fromAsset(pdfName)
     .load();
 ```
 
-* ```pages``` is optional, it allows you to filter and order the pages of the PDF as you need
+2-page view options:
+
+* ```setOnePageView``` (default) 1 page of the document per screen
+* ```setTwoPageView``` 2 pages per screen, starting from the beginning of the document
+* ```setMagazineTwoPageView``` the 1st page of the document alone, then 2 pages per screen, starting from the 2nd and 3rd pages
+
+Other options:
+
+* **note:** ```pages``` may not work (originally: is optional, it allows you to filter and order the pages of the PDF as you need)
 * ```onDraw``` is also optional, and allows you to draw something on a provided canvas, above the current page
 
 # License

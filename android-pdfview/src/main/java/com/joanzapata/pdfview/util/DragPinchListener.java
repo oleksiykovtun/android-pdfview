@@ -19,6 +19,7 @@
 package com.joanzapata.pdfview.util;
 
 import android.graphics.PointF;
+import android.os.CountDownTimer;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
@@ -94,9 +95,23 @@ public class DragPinchListener implements OnTouchListener {
 
     }
 
+    /** Implement this interface to receive Single Tap events */
+    public interface OnSingleTapListener {
+
+        /**
+         * Called when a single tap happens.
+         * @param x X-offset of event.
+         * @param y Y-offset of event.
+         */
+        void onSingleTap(float x, float y);
+
+    }
+
     enum State {NONE, ZOOM, DRAG}
 
     private State state = State.NONE;
+
+    private static CountDownTimer singleClickTimer;
 
     private float dragLastX, dragLastY;
 
@@ -110,12 +125,14 @@ public class DragPinchListener implements OnTouchListener {
 
     private OnDoubleTapListener onDoubleTapListener;
 
+    private OnSingleTapListener onSingleTapListener;
+
     private float lastDownX, lastDownY;
 
     private long lastClickTime;
 
     @Override
-    public boolean onTouch(View v, MotionEvent event) {
+    public boolean onTouch(View v, final MotionEvent event) {
         switch (event.getAction()) {
 
             // NORMAL CASE : FIRST POINTER DOWN
@@ -146,12 +163,30 @@ public class DragPinchListener implements OnTouchListener {
                 state = State.NONE;
                 endDrag();
 
+
                 // Treat clicks
                 if (isClick(event, lastDownX, lastDownY, event.getX(), event.getY())) {
-                    long time = System.currentTimeMillis();
-                    if (time - lastClickTime < MAX_DOUBLE_CLICK_TIME) {
+                    if (singleClickTimer != null) {
+                        singleClickTimer.cancel();
+                    }
+                    singleClickTimer = null;
+                    singleClickTimer = new CountDownTimer((int)MAX_DOUBLE_CLICK_TIME, Integer.MAX_VALUE) {
+                        public void onTick(long millisUntilFinished) { }
+                        public void onFinish() {
+                            if (System.currentTimeMillis() - lastClickTime > MAX_DOUBLE_CLICK_TIME) {
+                                if (onSingleTapListener != null) {
+                                    onSingleTapListener.onSingleTap(event.getX(), event.getY());
+                                }
+                            }
+                        }
+                    }.start();
+
+                    if (System.currentTimeMillis() - lastClickTime < MAX_DOUBLE_CLICK_TIME) {
                         if (onDoubleTapListener != null) {
                             onDoubleTapListener.onDoubleTap(event.getX(), event.getY());
+                        }
+                        if (singleClickTimer != null) {
+                            singleClickTimer.cancel();
                         }
                         lastClickTime = 0;
                     } else {
@@ -277,6 +312,10 @@ public class DragPinchListener implements OnTouchListener {
 
     public void setOnDoubleTapListener(OnDoubleTapListener onDoubleTapListener) {
         this.onDoubleTapListener = onDoubleTapListener;
+    }
+
+    public void setOnSingleTapListener(OnSingleTapListener onSingleTapListener) {
+        this.onSingleTapListener = onSingleTapListener;
     }
 
 }

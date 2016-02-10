@@ -29,11 +29,14 @@ import com.joanzapata.pdfview.exception.FileNotFoundException;
 import com.joanzapata.pdfview.listener.OnDrawListener;
 import com.joanzapata.pdfview.listener.OnLoadCompleteListener;
 import com.joanzapata.pdfview.listener.OnPageChangeListener;
+import com.joanzapata.pdfview.listener.OnTapListener;
 import com.joanzapata.pdfview.model.PagePart;
 import com.joanzapata.pdfview.util.ArrayUtils;
 import com.joanzapata.pdfview.util.Constants;
 import com.joanzapata.pdfview.util.FileUtils;
 import com.joanzapata.pdfview.util.NumberUtils;
+
+import org.vudroid.ViewMode;
 import org.vudroid.core.DecodeService;
 
 import java.io.File;
@@ -151,6 +154,9 @@ public class PDFView extends SurfaceView {
     /** Call back object to call when the page has changed */
     private OnPageChangeListener onPageChangeListener;
 
+    /** Call back object to call when the page is tapped */
+    private OnTapListener onTapListener;
+
     /** Call back object to call when the above layer is to drawn */
     private OnDrawListener onDrawListener;
 
@@ -236,12 +242,20 @@ public class PDFView extends SurfaceView {
         renderingAsyncTask.execute();
     }
 
+    public void onTap(int tapX, int tapY) {
+        if (onTapListener != null) {
+            onTapListener.onTap(tapX, tapY);
+        }
+    }
+
     /**
      * Go to the given page.
      * @param page Page number starting from 1.
      */
     public void jumpTo(int page) {
-        showPage(page - 1);
+        showPage(ViewMode.isMagazine()
+                ? (Math.max(0, page / ViewMode.get()))
+                : ((page - 1) / ViewMode.get()));
     }
 
     void showPage(int pageNb) {
@@ -249,7 +263,13 @@ public class PDFView extends SurfaceView {
 
         // Check the page number and makes the
         // difference between UserPages and DocumentPages
-        pageNb = determineValidPageNumberFrom(pageNb);
+        int documentPageNumber = ViewMode.isMagazine()
+                ? (Math.max(0, pageNb * ViewMode.get() - 1))
+                : (pageNb * ViewMode.get());
+        documentPageNumber = determineValidPageNumberFrom(documentPageNumber);
+        pageNb = ViewMode.isMagazine()
+                ? Math.max(1, documentPageNumber + 1) / ViewMode.get()
+                : documentPageNumber / ViewMode.get();
         currentPage = pageNb;
         currentFilteredPage = pageNb;
         if (filteredUserPageIndexes != null) {
@@ -265,7 +285,13 @@ public class PDFView extends SurfaceView {
         loadPages();
 
         if (onPageChangeListener != null) {
-            onPageChangeListener.onPageChanged(currentPage + 1, getPageCount());
+            int pageNumberToShow;
+            if (ViewMode.isMagazine() && currentPage > 0) {
+                pageNumberToShow = currentPage * ViewMode.get();
+            } else {
+                pageNumberToShow = currentPage * ViewMode.get() + 1;
+            }
+            onPageChangeListener.onPageChanged(pageNumberToShow, getPageCount());
         }
     }
 
@@ -278,6 +304,10 @@ public class PDFView extends SurfaceView {
 
     public void enableSwipe(boolean enableSwipe) {
         dragPinchManager.setSwipeEnabled(enableSwipe);
+    }
+
+    private void setOnTapListener(OnTapListener onTapListener) {
+        this.onTapListener = onTapListener;
     }
 
     private void setOnPageChangeListener(OnPageChangeListener onPageChangeListener) {
@@ -494,11 +524,17 @@ public class PDFView extends SurfaceView {
      * the screen, and start loading these parts in a spiral {@link SpiralLoopManager},
      * only if the given part is not already in the Cache, in which case it
      * moves the part up in the cache.
-     * @param userPage          The user page to load.
+     * @param screenPage          The screen page to load.
      * @param nbOfPartsLoadable Maximum number of parts it can load.
      * @return The number of parts loaded.
      */
-    private int loadPage(final int userPage, final int nbOfPartsLoadable) {
+    private int loadPage(final int screenPage, final int nbOfPartsLoadable) {
+        if (screenPage < 0) {
+            return 0;
+        }
+        final int userPage = ViewMode.isMagazine()
+            ? (Math.max(0, ViewMode.get() * screenPage - 1))
+            : (ViewMode.get() * screenPage);
 
         // Finds the document page associated with the given userPage
         int documentPage = userPage;
@@ -513,13 +549,12 @@ public class PDFView extends SurfaceView {
         if (documentPage < 0 || userPage >= documentPageCount) {
             return 0;
         }
-
         // Render thumbnail of the page
-        if (!cacheManager.containsThumbnail(userPage, documentPage, //
+        if (!cacheManager.containsThumbnail(screenPage, documentPage, //
                 (int) (optimalPageWidth * Constants.THUMBNAIL_RATIO), //
                 (int) (optimalPageHeight * Constants.THUMBNAIL_RATIO), //
                 new RectF(0, 0, 1, 1))) {
-            renderingAsyncTask.addRenderingTask(userPage, documentPage, //
+            renderingAsyncTask.addRenderingTask(screenPage, documentPage, //
                     (int) (optimalPageWidth * Constants.THUMBNAIL_RATIO), //
                     (int) (optimalPageHeight * Constants.THUMBNAIL_RATIO), //
                     new RectF(0, 0, 1, 1), true, 0);
@@ -530,7 +565,7 @@ public class PDFView extends SurfaceView {
         // the PDF page. These four coordinates are ratios (0 -> 1), where
         // (0,0) is the top left corner of the PDF page, and (1,1) is the
         // bottom right corner.
-        float ratioX = 1f / (float) optimalPageWidth;
+        float ratioX = 1f / (float) optimalPageWidth * ViewMode.get();
         float ratioY = 1f / (float) optimalPageHeight;
         final float partHeight = (Constants.PART_SIZE * ratioY) / zoom;
         final float partWidth = (Constants.PART_SIZE * ratioX) / zoom;
@@ -589,12 +624,12 @@ public class PDFView extends SurfaceView {
                     // Check it the calculated part is already contained in the Cache
                     // If it is, this call will insure the part will go to the right
                     // place in the cache and won't be deleted if the cache need space.
-                    if (!cacheManager.upPartIfContained(userPage, documentPageFinal, //
+                    if (!cacheManager.upPartIfContained(screenPage, documentPageFinal, //
                             renderWidth, renderHeight, pageRelativeBounds, nbItemTreated)) {
 
                         // If not already in cache, register the rendering
                         // task for further execution.
-                        renderingAsyncTask.addRenderingTask(userPage, documentPageFinal, //
+                        renderingAsyncTask.addRenderingTask(screenPage, documentPageFinal, //
                                 renderWidth, renderHeight, pageRelativeBounds, false, nbItemTreated);
                     }
 
@@ -659,6 +694,12 @@ public class PDFView extends SurfaceView {
     private int determineValidPageNumberFrom(int userPage) {
         if (userPage <= 0) {
             return 0;
+        }
+        // special case for 2-page view
+        if (userPage == getPageCount()
+                && getPageCount() % 2 == 0
+                && ViewMode.get() == ViewMode.TWO_PAGE) {
+            return getPageCount() - 1;
         }
         if (originalUserPages != null) {
             if (userPage >= originalUserPages.length) {
@@ -848,6 +889,7 @@ public class PDFView extends SurfaceView {
         return currentPage;
     }
 
+
     public float getCurrentXOffset() {
         return currentXOffset;
     }
@@ -896,6 +938,10 @@ public class PDFView extends SurfaceView {
         animationManager.startZoomAnimation(zoom, 1f);
     }
 
+    public void setZoomWithAnimation(float newZoom, float zoomCenterX, float zoomCenterY) {
+        animationManager.startZoomAnimation(zoom, newZoom);
+    }
+
     /** Use an asset file as the pdf source */
     public Configurator fromAsset(String assetName) {
         try {
@@ -928,6 +974,8 @@ public class PDFView extends SurfaceView {
 
         private OnPageChangeListener onPageChangeListener;
 
+        private OnTapListener onTapListener;
+
         private int defaultPage = 1;
 
         private boolean showMinimap = false;
@@ -936,7 +984,8 @@ public class PDFView extends SurfaceView {
             this.uri = uri;
         }
 
-        public Configurator pages(int... pageNumbers) {
+        // todo fix user pages for 2-page mode
+        private Configurator pages(int... pageNumbers) {
             this.pageNumbers = pageNumbers;
             return this;
         }
@@ -956,6 +1005,11 @@ public class PDFView extends SurfaceView {
             return this;
         }
 
+        public Configurator onTap(OnTapListener onTapListener) {
+            this.onTapListener = onTapListener;
+            return this;
+        }
+
         public Configurator onPageChange(OnPageChangeListener onPageChangeListener) {
             this.onPageChangeListener = onPageChangeListener;
             return this;
@@ -966,10 +1020,27 @@ public class PDFView extends SurfaceView {
             return this;
         }
 
+        public Configurator setTwoPageView() {
+            ViewMode.set(ViewMode.TWO_PAGE);
+            return this;
+        }
+
+        public Configurator setOnePageView() {
+            ViewMode.set(ViewMode.ONE_PAGE);
+            return this;
+        }
+
+        public Configurator setMagazineTwoPageView() {
+            ViewMode.set(ViewMode.TWO_PAGE);
+            ViewMode.setMagazine(true);
+            return this;
+        }
+
         public void load() {
             PDFView.this.recycle();
             PDFView.this.setOnDrawListener(onDrawListener);
             PDFView.this.setOnPageChangeListener(onPageChangeListener);
+            PDFView.this.setOnTapListener(onTapListener);
             PDFView.this.enableSwipe(enableSwipe);
             PDFView.this.setDefaultPage(defaultPage);
             PDFView.this.setUserWantsMinimap(showMinimap);
@@ -978,6 +1049,11 @@ public class PDFView extends SurfaceView {
             } else {
                 PDFView.this.load(uri, onLoadCompleteListener);
             }
+        }
+
+        public void loadWithNoView() {
+            PDFView.this.recycle();
+            PDFView.this.load(uri, onLoadCompleteListener);
         }
 
         public Configurator showMinimap(boolean showMinimap) {

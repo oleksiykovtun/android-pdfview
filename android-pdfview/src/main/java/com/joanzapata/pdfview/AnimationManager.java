@@ -23,6 +23,7 @@ import android.animation.Animator.AnimatorListener;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.graphics.PointF;
+import android.util.Log;
 import android.view.animation.DecelerateInterpolator;
 
 import com.joanzapata.pdfview.PDFView;
@@ -83,6 +84,16 @@ class AnimationManager {
         public void onAnimationUpdate(ValueAnimator animation) {
             float offset = (Float) animation.getAnimatedValue();
             pdfView.moveTo(offset, pdfView.getCurrentYOffset());
+        }
+
+    }
+
+    class YAnimation implements AnimatorUpdateListener {
+
+        @Override
+        public void onAnimationUpdate(ValueAnimator animation) {
+            float offset = (Float) animation.getAnimatedValue();
+            pdfView.moveTo(pdfView.getCurrentXOffset(), offset);
         }
 
     }
